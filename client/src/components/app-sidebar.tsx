@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Network, Phone, Heart } from "lucide-react";
+import { LayoutDashboard, Users, Network, Phone, Heart, Brain } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -17,6 +17,7 @@ const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Clients", url: "/clients", icon: Users },
   { title: "Referral Graph", url: "/graph", icon: Network },
+  { title: "Pioneer Models", url: "/pioneer", icon: Brain },
 ];
 
 export function AppSidebar() {
@@ -75,7 +76,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-4">
         <p className="text-xs text-muted-foreground">
-          Powered by Twilio, Tavily, Fastino, Neo4j, Modulate, Yutori
+          Powered by OpenAI, ElevenLabs, Tavily, Fastino, Neo4j, Yutori
         </p>
       </SidebarFooter>
     </Sidebar>

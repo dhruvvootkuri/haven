@@ -12,6 +12,7 @@ import ClientsPage from "@/pages/clients";
 import NewClientPage from "@/pages/new-client";
 import ClientDetailPage from "@/pages/client-detail";
 import ReferralGraphPage from "@/pages/referral-graph";
+import PioneerModelsPage from "@/pages/pioneer-models";
 
 function Router() {
   return (
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/clients/new" component={NewClientPage} />
       <Route path="/clients/:id" component={ClientDetailPage} />
       <Route path="/graph" component={ReferralGraphPage} />
+      <Route path="/pioneer" component={PioneerModelsPage} />
       <Route component={NotFound} />
     </Switch>
   );

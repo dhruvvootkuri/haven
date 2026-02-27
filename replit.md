@@ -22,7 +22,7 @@ A case worker dashboard web application that helps homeless people apply for hou
 ## Project Structure
 ```
 client/src/
-  pages/           - Dashboard, Clients, NewClient, ClientDetail, ReferralGraph
+  pages/           - Dashboard, Clients, NewClient, ClientDetail, ReferralGraph, PioneerModels
   components/      - AppSidebar, ThemeToggle, LiveTranscript, VoiceChat, UI components
   hooks/           - useTheme, useToast, useMobile
 server/
@@ -67,12 +67,17 @@ shared/
 - `POST /api/calls/:callId/end` - End the call, triggers finalization
 
 ## Fastino/Pioneer API
-- Endpoint: `https://api.pioneer.ai/gliner-2`
+- Base endpoint: `https://api.pioneer.ai/gliner-2` (base GLiNER-2 model)
+- Fine-tuned endpoint: `https://api.pioneer.ai/inference` (custom trained models, requires `model_id`)
 - Auth: `x-api-key` header with FASTINO_API_KEY
 - Operations: `extract_json` (structured data), `extract_entities` (NER), `classify_text` (with `categories` key)
 - Entity extraction: housing_need, location_preference, health_condition, employment_detail, family_situation, document_type, urgency_indicator, service_need
 - Multi-dimensional relevance: overall, location, urgency, services dimensions
 - Eligibility: housing_type, income_requirement, demographic, location_match, documentation categories
+- **Model Vibetuning**: Upload NER/classification training datasets → Train custom model → Deploy → Switch inference to custom model via `/inference`
+- Training API: `/felix/datasets/upload/url` → S3 upload → `/felix/datasets/upload/process` → `/felix/training-jobs` (POST to start, GET for status)
+- NER dataset format: JSONL with `{ text, entities: [[span_text, label], ...] }`
+- Dataset reference for training: `{ name: "dataset-name" }` (by name, not by ID)
 
 ## Additional API Endpoints
 - `POST /api/clients/:id/extract-entities` - Extract GLiNER entities from call transcripts
@@ -80,6 +85,14 @@ shared/
 - `POST /api/clients/:id/search-housing` - Search + score housing programs
 - `POST /api/clients/:id/run-pipeline` - Full pipeline: search → score → eligibility
 - `POST /api/tts` - ElevenLabs text-to-speech
+- `GET /api/pioneer/datasets` - List Pioneer datasets
+- `POST /api/pioneer/datasets/create-ner` - Create NER training dataset
+- `POST /api/pioneer/datasets/create-classification` - Create classification training dataset
+- `GET /api/pioneer/training-jobs` - List training jobs
+- `POST /api/pioneer/training-jobs` - Start training { datasetName, modelName }
+- `GET /api/pioneer/training-jobs/:jobId` - Get training job status
+- `POST /api/pioneer/active-model` - Set active model { modelId }
+- `GET /api/pioneer/active-model` - Get current active model
 
 ## Per-Sentence Emotion Analysis
 Each caller utterance is split by sentence. Every sentence gets its own emotion classification:

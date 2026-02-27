@@ -11,7 +11,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   ArrowLeft, Phone, PhoneOff, Search, FileCheck, Send,
   AlertTriangle, CheckCircle2, XCircle, MapPin, Clock,
-  Heart, Brain, Loader2, ExternalLink, User, Shield, FileText
+  Heart, Brain, Loader2, ExternalLink, User, Shield, FileText,
+  Sparkles, Tag, Zap
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useCallback } from "react";
@@ -103,6 +104,26 @@ export default function ClientDetailPage() {
       toast({ title: "Application submitted", description: "Yutori is processing the application." });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const [fastinoEntities, setFastinoEntities] = useState<Record<string, string[]> | null>(null);
+  const [fastinoLoading, setFastinoLoading] = useState(false);
+
+  const extractEntitiesMutation = useMutation({
+    mutationFn: async () => {
+      setFastinoLoading(true);
+      const res = await apiRequest("POST", `/api/clients/${id}/extract-entities`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setFastinoEntities(data.entities);
+      setFastinoLoading(false);
+      toast({ title: "Fastino Analysis Complete", description: "GLiNER entities extracted from call transcripts." });
+    },
+    onError: (e: Error) => {
+      setFastinoLoading(false);
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
   });
 
   const pipelineMutation = useMutation({
@@ -230,6 +251,10 @@ export default function ClientDetailPage() {
           <TabsTrigger value="applications" data-testid="tab-applications">
             <Send className="h-4 w-4 mr-1" />
             Applications
+          </TabsTrigger>
+          <TabsTrigger value="ai-analysis" data-testid="tab-ai-analysis">
+            <Sparkles className="h-4 w-4 mr-1" />
+            AI Analysis
           </TabsTrigger>
         </TabsList>
 
@@ -512,6 +537,201 @@ export default function ClientDetailPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="ai-analysis" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Fastino GLiNER Entity Extraction
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Uses Pioneer GLiNER-2 model to extract structured entities from call transcripts
+                </p>
+              </div>
+              <Button
+                onClick={() => extractEntitiesMutation.mutate()}
+                disabled={fastinoLoading}
+                size="sm"
+                data-testid="button-extract-entities"
+              >
+                {fastinoLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Zap className="h-4 w-4 mr-1" />}
+                Extract Entities
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {!fastinoEntities ? (
+                <div className="py-8 text-center space-y-2">
+                  <Tag className="h-10 w-10 mx-auto text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground">
+                    Click "Extract Entities" to run Fastino GLiNER analysis on this client's call transcripts.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    The model identifies housing needs, locations, health conditions, employment details, and more.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <EntityCard
+                      label="Housing Needs"
+                      entities={fastinoEntities.housing_need || []}
+                      color="bg-blue-500"
+                      emptyText="None detected"
+                    />
+                    <EntityCard
+                      label="Location Preferences"
+                      entities={fastinoEntities.location_preference || []}
+                      color="bg-emerald-500"
+                      emptyText="None detected"
+                    />
+                    <EntityCard
+                      label="Health Conditions"
+                      entities={fastinoEntities.health_condition || []}
+                      color="bg-red-500"
+                      emptyText="None detected"
+                    />
+                    <EntityCard
+                      label="Employment Details"
+                      entities={fastinoEntities.employment_detail || []}
+                      color="bg-amber-500"
+                      emptyText="None detected"
+                    />
+                    <EntityCard
+                      label="Family Situation"
+                      entities={fastinoEntities.family_situation || []}
+                      color="bg-purple-500"
+                      emptyText="None detected"
+                    />
+                    <EntityCard
+                      label="Document Types"
+                      entities={fastinoEntities.document_type || []}
+                      color="bg-cyan-500"
+                      emptyText="None detected"
+                    />
+                    <EntityCard
+                      label="Urgency Indicators"
+                      entities={fastinoEntities.urgency_indicator || []}
+                      color="bg-orange-500"
+                      emptyText="None detected"
+                    />
+                    <EntityCard
+                      label="Service Needs"
+                      entities={fastinoEntities.service_need || []}
+                      color="bg-teal-500"
+                      emptyText="None detected"
+                    />
+                  </div>
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" />
+                      Powered by Fastino Pioneer GLiNER-2 — Entity extraction via <code className="bg-muted px-1 rounded">extract_entities</code> task
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {programs && programs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Search className="h-4 w-4" />
+                  Fastino Relevance Scoring
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Housing programs scored by GLiNER relevance classification (60% Fastino + 40% Tavily)
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {[...programs].sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0)).map(program => (
+                    <div key={program.id} className="flex items-center gap-3 p-2 rounded-md bg-muted/50" data-testid={`fastino-score-${program.id}`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{program.name}</p>
+                        <p className="text-xs text-muted-foreground">{program.programType}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Progress value={(program.relevanceScore || 0) * 100} className="h-2 w-20" />
+                        <span className="text-sm font-semibold tabular-nums w-12 text-right">
+                          {Math.round((program.relevanceScore || 0) * 100)}%
+                        </span>
+                        <Badge
+                          variant={
+                            (program.relevanceScore || 0) >= 0.8 ? "default" :
+                            (program.relevanceScore || 0) >= 0.5 ? "secondary" : "outline"
+                          }
+                          className="text-[10px] w-20 justify-center"
+                        >
+                          {(program.relevanceScore || 0) >= 0.8 ? "Highly Relevant" :
+                           (program.relevanceScore || 0) >= 0.5 ? "Moderate" : "Low"}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {assessments && assessments.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileCheck className="h-4 w-4" />
+                  Fastino Eligibility Classification
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Multi-factor eligibility assessment using GLiNER <code className="bg-muted px-1 rounded">classify_text</code>
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {assessments.map(a => {
+                    const program = programs?.find(p => p.id === a.programId);
+                    return (
+                      <div key={a.id} className="p-3 rounded-md border space-y-2" data-testid={`fastino-eligibility-${a.id}`}>
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            {a.eligible ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            )}
+                            <span className="text-sm font-medium">
+                              {program?.name || "Program"} — {Math.round((a.score || 0) * 100)}%
+                            </span>
+                          </div>
+                          <Badge variant={a.eligible ? "default" : "secondary"}>
+                            {a.eligible ? "Eligible" : "Not Eligible"}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{a.recommendation}</p>
+                        {a.factors && (
+                          <div className="grid grid-cols-2 gap-1">
+                            {(a.factors as Array<{ factor: string; met: boolean; weight: number }>).map((f, i) => (
+                              <div key={i} className="flex items-center gap-1 text-xs">
+                                {f.met ? (
+                                  <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400 shrink-0" />
+                                ) : (
+                                  <XCircle className="h-3 w-3 text-red-400 shrink-0" />
+                                )}
+                                <span className={f.met ? "" : "text-muted-foreground"}>{f.factor}</span>
+                                <span className="text-muted-foreground ml-auto">({Math.round(f.weight * 100)}%)</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -536,7 +756,7 @@ function EmotionPanel({ client, latestCall }: { client: Client; latestCall?: Cal
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <Brain className="h-4 w-4" />
-          Emotion Analysis (Modulate)
+          Emotion Analysis (OpenAI)
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -617,6 +837,29 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
       <span className="text-muted-foreground shrink-0">{icon}</span>
       <span className="text-muted-foreground shrink-0 w-24">{label}</span>
       <span className="font-medium truncate">{value}</span>
+    </div>
+  );
+}
+
+function EntityCard({ label, entities, color, emptyText }: { label: string; entities: string[]; color: string; emptyText: string }) {
+  return (
+    <div className="p-3 rounded-md border space-y-2">
+      <div className="flex items-center gap-2">
+        <div className={`h-2.5 w-2.5 rounded-full ${color}`} />
+        <span className="text-sm font-medium">{label}</span>
+        <Badge variant="outline" className="text-[10px] ml-auto">{entities.length}</Badge>
+      </div>
+      {entities.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {entities.map((entity, i) => (
+            <Badge key={i} variant="secondary" className="text-xs">
+              {entity}
+            </Badge>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">{emptyText}</p>
+      )}
     </div>
   );
 }

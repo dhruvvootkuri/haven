@@ -109,6 +109,7 @@ export async function getReferralGraph(clientId?: string) {
     const nodes: Array<{ id: string; label: string; type: string; data: Record<string, any> }> = [];
     const edges: Array<{ id: string; source: string; target: string; label: string; data: Record<string, any> }> = [];
     const nodeIds = new Set<string>();
+    const internalIdToAppId = new Map<string, string>();
 
     for (const record of result.records) {
       for (const key of record.keys) {
@@ -116,26 +117,44 @@ export async function getReferralGraph(clientId?: string) {
         if (!val) continue;
 
         if (val.labels) {
-          const id = val.properties.id || val.identity.toString();
-          if (!nodeIds.has(id)) {
-            nodeIds.add(id);
+          const appId = val.properties.id || val.identity.toString();
+          const internalId = val.identity.toString();
+          internalIdToAppId.set(internalId, appId);
+          if (!nodeIds.has(appId)) {
+            nodeIds.add(appId);
             nodes.push({
-              id,
+              id: appId,
               label: val.properties.name || val.labels[0],
               type: val.labels[0],
               data: val.properties,
             });
           }
-        } else if (val.type) {
-          const src = val.start?.toString() || "";
-          const tgt = val.end?.toString() || "";
-          edges.push({
-            id: `${src}-${val.type}-${tgt}`,
-            source: src,
-            target: tgt,
-            label: val.type,
-            data: val.properties || {},
-          });
+        }
+      }
+    }
+
+    const edgeIds = new Set<string>();
+    for (const record of result.records) {
+      for (const key of record.keys) {
+        const val = record.get(key);
+        if (!val) continue;
+
+        if (val.type && val.start !== undefined && val.end !== undefined) {
+          const srcInternal = val.start.toString();
+          const tgtInternal = val.end.toString();
+          const src = internalIdToAppId.get(srcInternal) || srcInternal;
+          const tgt = internalIdToAppId.get(tgtInternal) || tgtInternal;
+          const edgeId = `${src}-${val.type}-${tgt}`;
+          if (!edgeIds.has(edgeId)) {
+            edgeIds.add(edgeId);
+            edges.push({
+              id: edgeId,
+              source: src,
+              target: tgt,
+              label: val.type,
+              data: val.properties || {},
+            });
+          }
         }
       }
     }

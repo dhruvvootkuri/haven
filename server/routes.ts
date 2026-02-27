@@ -4,7 +4,8 @@ import { storage } from "./storage";
 import { insertClientSchema } from "@shared/schema";
 import { searchHousingPrograms } from "./services/tavily";
 import { analyzeEmotions } from "./services/modulate";
-import { classifyEligibility, extractClientEntities, classifyMultiDimensionalRelevance } from "./services/fastino";
+import { classifyEligibility, extractClientEntities, classifyMultiDimensionalRelevance, getOrCreateTrainingDataset, getOrCreateClassificationDataset, trainModel, getTrainingJobStatus, listTrainingJobs, listDatasets, setActiveModel, getActiveModelId } from "./services/fastino";
+
 import { submitApplication } from "./services/yutori";
 import * as neo4jService from "./services/neo4j";
 import { setupWebSocket, broadcastTranscriptSegment, broadcastCallEvent } from "./websocket";
@@ -506,6 +507,77 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  app.get("/api/pioneer/datasets", async (_req, res) => {
+    try {
+      const datasets = await listDatasets();
+      res.json({ datasets });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/pioneer/datasets/create-ner", async (_req, res) => {
+    try {
+      const result = await getOrCreateTrainingDataset();
+      res.json({ datasetId: result.id, datasetName: result.name, type: "ner" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/pioneer/datasets/create-classification", async (_req, res) => {
+    try {
+      const result = await getOrCreateClassificationDataset();
+      res.json({ datasetId: result.id, datasetName: result.name, type: "classification" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/pioneer/training-jobs", async (_req, res) => {
+    try {
+      const jobs = await listTrainingJobs();
+      res.json({ jobs });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/pioneer/training-jobs", async (req, res) => {
+    try {
+      const { datasetName, modelName } = req.body;
+      if (!datasetName) return res.status(400).json({ error: "datasetName is required" });
+      const jobId = await trainModel(datasetName, modelName || "haven-housing-model");
+      res.json({ jobId, status: "requested" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/pioneer/training-jobs/:jobId", async (req, res) => {
+    try {
+      const status = await getTrainingJobStatus(req.params.jobId);
+      res.json(status);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/pioneer/active-model", async (req, res) => {
+    try {
+      const { modelId } = req.body;
+      if (modelId === undefined || modelId === null) return res.status(400).json({ error: "modelId is required" });
+      await setActiveModel(modelId || null);
+      res.json({ activeModelId: modelId || null });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/pioneer/active-model", async (_req, res) => {
+    res.json({ activeModelId: getActiveModelId() });
   });
 
   app.get("/api/referral-graph", async (req, res) => {

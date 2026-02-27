@@ -33,8 +33,15 @@ export default function VoiceChat({ callId, greetingText, onCallEnded }: VoiceCh
   const shouldListenRef = useRef(false);
   const endedRef = useRef(false);
   const elevenLabsAvailableRef = useRef<boolean | null>(null);
+  const accumulatedTextRef = useRef("");
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopRecognition = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    accumulatedTextRef.current = "";
     if (recognitionRef.current) {
       shouldListenRef.current = false;
       try { recognitionRef.current.abort(); } catch (e) {}
@@ -156,11 +163,21 @@ export default function VoiceChat({ callId, greetingText, onCallEnded }: VoiceCh
         }
       }
 
-      if (interim) setInterimText(interim);
+      if (interim) setInterimText(accumulatedTextRef.current + " " + interim);
 
       if (finalText.trim()) {
-        setInterimText("");
-        handleFinalText(finalText.trim());
+        accumulatedTextRef.current = (accumulatedTextRef.current + " " + finalText).trim();
+        setInterimText(accumulatedTextRef.current);
+
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = setTimeout(() => {
+          if (accumulatedTextRef.current.trim() && !isProcessingRef.current) {
+            const fullText = accumulatedTextRef.current.trim();
+            accumulatedTextRef.current = "";
+            setInterimText("");
+            handleFinalText(fullText);
+          }
+        }, 1500);
       }
     };
 
@@ -174,6 +191,14 @@ export default function VoiceChat({ callId, greetingText, onCallEnded }: VoiceCh
 
     recognition.onend = () => {
       recognitionRef.current = null;
+      if (accumulatedTextRef.current.trim() && !isProcessingRef.current) {
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        const fullText = accumulatedTextRef.current.trim();
+        accumulatedTextRef.current = "";
+        setInterimText("");
+        handleFinalText(fullText);
+        return;
+      }
       if (shouldListenRef.current && !endedRef.current) {
         setTimeout(() => startRecognition(), 100);
       }
